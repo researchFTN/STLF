@@ -27,7 +27,7 @@ day_light_filter=day_light_filter.DayLightFilter()
 
 num_genes = 14
 sol_per_pop = 128
-num_generations = 100
+num_generations = 500
 num_parents_mating = 64
 pc=[1.0,1.14,0.10]
 pc_load=0.014286
@@ -36,39 +36,31 @@ pc_h=0.014286
 wc=0.002738 
 pc_dl=0.05
 load=[]
+data=[]
 
 def fitness_func(solution, solution_idx):
   
-    dataSet=[x for x in write_read_file.data_copy if x.start_date<F_day.start_date and x.part==F_day.part]
-    data=[]
-    day_type:int
-    day_type=(F_day.start_date).weekday()
+    retVal=[]
+    retVal=weather_filter.weather_filter(F_day, copy.deepcopy(data), solution[0:3], pc)
+    retVal=inertial_filter.inertial_filter(F_day, copy.deepcopy(retVal), solution[3], pc_load, pc_temp, pc_h, solution[4], solution[5], solution[6], solution[7])
+    retVal=distance_filter.distance_filter(F_day, copy.deepcopy(retVal), wc)
+    retVal=day_light_filter.day_light_filter(F_day, copy.deepcopy(retVal), pc_dl)
 
-    if F_day.spec_day==True:
-        day_type=6
-    
-    data=initial_filter.initial_filter(F_day, day_type, copy.deepcopy(dataSet))
-    data=DST.get_all_hours(F_day, copy.deepcopy(data))
-    data=weather_filter.weather_filter(F_day, copy.deepcopy(data), solution[0:3], pc)
-    data=inertial_filter.inertial_filter(F_day, copy.deepcopy(data), solution[3], pc_load, pc_temp, pc_h, solution[4], solution[5], solution[6], solution[7])
-    data=distance_filter.distance_filter(F_day, copy.deepcopy(data), wc)
-    data=day_light_filter.day_light_filter(F_day, copy.deepcopy(data), pc_dl)
+    for i_coef in range(0, len(retVal)):
 
-    for i_coef in range(0, len(data)):
-
-        data[i_coef].coef=copy.deepcopy(((solution[8]*data[i_coef].weather_coef)+(solution[9]*data[i_coef].inertial_coef)+(solution[10]*data[i_coef].distance_coef)+(solution[13]*data[i_coef].day_light_coef))/(solution[8]+solution[9]+solution[10]+solution[13]))
+        retVal[i_coef].coef=copy.deepcopy(((solution[8]*retVal[i_coef].weather_coef)+(solution[9]*retVal[i_coef].inertial_coef)+(solution[10]*retVal[i_coef].distance_coef)+(solution[13]*retVal[i_coef].day_light_coef))/(solution[8]+solution[9]+solution[10]+solution[13]))
      
-    data.sort(key=lambda x: x.coef, reverse=False)
+    retVal.sort(key=lambda x: x.coef, reverse=False)
 
-    data=deviation_filter.deviation_filter(data.copy(), solution[11], solution[12])
+    retVal=deviation_filter.deviation_filter(retVal.copy(), solution[11], solution[12])
     
     forecast=[]
     elem=0
 
     for a in range(len(F_day.hours)):
-        for b in range(len(data)):
-            elem+=data[b].hours[a].load
-        forecast.append(copy.copy(elem)/len(data))
+        for b in range(len(retVal)):
+            elem+=retVal[b].hours[a].load
+        forecast.append(copy.copy(elem)/len(retVal))
         elem=0
 
     scoreAbs = mean_absolute_percentage_error(load, forecast)*100
@@ -77,9 +69,23 @@ def fitness_func(solution, solution_idx):
 
 def run_ga(f_day: day.Day):
 
-    global F_day, load
+    global F_day, load, data
+
     F_day=f_day
-   
+    load=[]
+    data=[]
+
+    dataSet=[x for x in write_read_file.data_copy if x.start_date<F_day.start_date and x.part==F_day.part]
+    
+    day_type:int
+    day_type=(F_day.start_date).weekday()
+
+    if F_day.spec_day==True:
+        day_type=6
+    
+    data=initial_filter.initial_filter(F_day, day_type, copy.deepcopy(dataSet))
+    data=DST.get_all_hours(F_day, copy.deepcopy(data))
+
     for y in range(len(F_day.hours)):
         load.append(F_day.hours[y].load)
 

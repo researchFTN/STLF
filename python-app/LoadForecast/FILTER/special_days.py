@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from DATA import write_read_file
+from DATA_MANIPULATION import write_read_file
 import calendar
 import holidays
 from datetime import date, datetime, timedelta
@@ -55,7 +55,7 @@ class SpecialDays:
 
             return HolidayType[holiday_type]
 
-        if date.strftime('%m/%d/%Y')-timedelta(days=1):
+        if date.date()-timedelta(days=1):
             return HolidayType.ThanksgivingObserved
         elif date.date() == easter(date.year):
             return HolidayType.EasterSunday
